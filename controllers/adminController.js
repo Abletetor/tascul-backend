@@ -171,33 +171,46 @@ export const rejectReview = async (req, res) => {
 };
 
 
-
-// Add Task
+//Add Task to Intern Dashboard
 export const addTask = async (req, res) => {
    const { title, description, dueDate, internId } = req.body;
 
    try {
-      // Find the intern by their internId
-      const intern = await Intern.findById(internId);
-
-      if (!intern) {
-         return res.status(404).json({ message: 'Intern not found' });
-      }
-      if (!intern.tasks) {
-         intern.tasks = [];
+      // Validate required fields
+      if (!title || !description || !dueDate || !internId) {
+         return res.status(400).json({ message: 'All fields are required' });
       }
 
-      // Add the new task to the intern's tasks array
-      intern.tasks.push({ title, description, deadline: dueDate, isCompleted: false });
+      // Validate dueDate format
+      const validDueDate = new Date(dueDate);
+      if (isNaN(validDueDate)) {
+         return res.status(400).json({ message: 'Invalid due date format' });
+      }
 
-      await intern.save();
+      // Create task object
+      const task = {
+         title: title.trim(),
+         description: description.trim(),
+         deadline: validDueDate,
+         isCompleted: false,
+      };
 
-      // Respond with success message
+      // update the intern's tasks array
+      const result = await Intern.updateOne(
+         { _id: internId },
+         { $push: { tasks: task } }
+      );
+
+      if (result.modifiedCount === 0) {
+         return res.status(404).json({ message: 'Intern not found or task not added' });
+      }
+
       res.status(201).json({ message: 'Task added successfully' });
    } catch (error) {
-      res.status(500).json({ message: 'Error adding task' });
+      res.status(500).json({ message: 'Error adding task', error: error.message });
    }
 };
+
 
 // Get all interns
 export const getAllInterns = async (req, res) => {
